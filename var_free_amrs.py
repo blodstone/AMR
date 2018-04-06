@@ -223,7 +223,7 @@ if __name__ == "__main__":
     print('Converting {0}...'.format(args.f))
 
     if not args.proxy:
-        gen_output(args.output_path, args.f, args.output_ext, args.sent_ext, filter_str=None)
+        gen_output(args.output_path, args.f, args.output_ext, args.sent_ext)
     else:
         # Create a folder specific for Proxy Report dataset
         proxy_path = os.path.join(args.output_path, 'proxy')
