@@ -173,20 +173,48 @@ def delete_amr_variables(amrs, filter_str=None):
     return del_amr
 
 
+def gen_output(path, f, output_ext, sent_ext, filter_str=''):
+    '''Generate output files'''
+    amr_no_wiki = delete_wiki(f, filter_str)
+    del_amrs = delete_amr_variables(amr_no_wiki, filter_str)
+    single_amrs, sents = single_line_convert(del_amrs, filter_str)
+
+    assert len(single_amrs) == len(sents)  # sanity check
+    if filter_str:
+        filter_name = filter_str + '_'
+    else:
+        filter_name = ''
+    out_tf = os.path.join(path, filter_name + os.path.basename(f) + output_ext)
+    out_sent = os.path.join(path, filter_name + os.path.basename(f) + sent_ext)
+    write_to_file(single_amrs, out_tf)
+    write_to_file(sents, out_sent)
+
 if __name__ == "__main__":
     args = create_args_parser()
 
     print 'Converting {0}...'.format(args.f)
 
     if not args.proxy:
-        amr_no_wiki = delete_wiki(args.f)
-        del_amrs = delete_amr_variables(amr_no_wiki)
-        single_amrs, sents = single_line_convert(del_amrs)
-
-        assert len(single_amrs) == len(sents)  # sanity check
-        out_tf = os.path.join(args.output_path, os.path.basename(args.f) + args.output_ext)
-        out_sent = os.path.join(args.output_path, os.path.basename(args.f) + args.sent_ext)
-        write_to_file(single_amrs, out_tf)
-        write_to_file(sents, out_sent)
+        gen_output(args.output_path, args.f, args.output_ext, args.sent_ext, filter_str=None)
     else:
-        print()
+        # Create a folder specific for Proxy Report dataset
+        proxy_path = os.path.join(args.output_path, 'proxy')
+        if not os.path.exists(proxy_path):
+            os.mkdir(proxy_path)
+
+        # Create a folder for side-information input
+        side_path = os.path.join(proxy_path, 'side')
+        if not os.path.exists(side_path):
+            os.mkdir(side_path)
+
+        # Create a folder for no-side-information input
+        no_side_path = os.path.join(proxy_path, 'no_side')
+        if not os.path.exists(no_side_path):
+            os.mkdir(no_side_path)
+
+        # No side folder
+        gen_output(no_side_path, args.f, args.output_ext, args.sent_ext, filter_str='summary')
+
+        # Side folder
+        gen_output(side_path, args.f, args.output_ext, args.sent_ext, filter_str='body')
+        gen_output(side_path, args.f, args.output_ext, args.sent_ext, filter_str='summary')
