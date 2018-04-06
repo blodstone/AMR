@@ -52,20 +52,23 @@ def single_line_convert(lines, filter_str):
     sents = []
     skip = False
     for line in lines:
+        if '::snt-type ' in line:
+            if '::snt-type ' + filter_str in line:
+                skip = False
+            else:
+                skip = True
         if not skip:
             if not line.strip() and cur_amr:
                 cur_amr_line = " ".join(cur_amr)
                 all_amrs.append(cur_amr_line.strip())
                 cur_amr = []
-                skip = False
             elif line.startswith('# ::snt') or line.startswith('# ::tok'):  # match sentence
                 sent = re.sub('(^# ::(tok|snt))', '', line).strip()  # remove # ::snt or # ::tok
                 sents.append(sent)
             elif not line.startswith('#'):
                 cur_amr.append(line.strip())
-        if 'snt-type ' + filter_str in line:
-            skip = True
-
+        if not line.strip():
+            skip = False
     if cur_amr:  # file did not end with newline, so add AMR here
         all_amrs.append(" ".join(cur_amr).strip())
 
@@ -80,15 +83,18 @@ def delete_wiki(f, filter_str):
     no_wiki = []
     skip = False
     for line in open(f, 'r'):
-        if not skip:
-            if not line.strip():
+        if '::snt-type ' in line:
+            if '::snt-type ' + filter_str in line:
                 skip = False
+            else:
+                skip = True
+        if not skip:
             n_line = re.sub(r':wiki "(.*?)"', '', line, 1)
             n_line = re.sub(':wiki -', '', n_line)
             no_wiki.append((len(n_line) - len(n_line.lstrip())) * ' ' + ' '.join(
                 n_line.split()))  # convert double whitespace but keep leading whitespace
-        if 'snt-type ' + filter_str in line:
-            skip = True
+        if not line.strip():
+            skip = False
     return no_wiki
 
 
@@ -136,6 +142,11 @@ def delete_amr_variables(amrs, filter_str):
     del_amr = []
     skip = False
     for line in amrs:
+        if '::snt-type ' in line:
+            if '::snt-type ' + filter_str in line:
+                skip = False
+            else:
+                skip = True
         if not skip:
             if line.strip() and line[0] != '#':
                 if '/' in line:  # variable here
@@ -155,12 +166,10 @@ def delete_amr_variables(amrs, filter_str):
                     else:
                         del_amr.append(
                             line)  # no reference found, add line without editing (usually there are numbers in this line)
-            elif not line.strip():
-                skip = False
             else:
                 del_amr.append(line)  # line with other info, just add
-        if 'snt-type ' + filter_str in line:
-            skip = True
+        if not line.strip():
+            skip = False
     return del_amr
 
 
