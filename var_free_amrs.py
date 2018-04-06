@@ -220,9 +220,11 @@ def split_file(f):
 if __name__ == "__main__":
     args = create_args_parser()
 
-    print('Converting {0}...'.format(args.f))
+    if not os.path.exists(args.output_path):
+        os.mkdir(args.output_path)
 
     if not args.proxy:
+        print('Converting {0}...'.format(args.f))
         gen_output(args.output_path, args.f, args.output_ext, args.sent_ext)
     else:
         # Create a folder specific for Proxy Report dataset
@@ -252,6 +254,7 @@ if __name__ == "__main__":
         files = split_file(args.f)
         for file_id, lines in files.items():
             file_name = os.path.join(side_path, 'amr_' + file_id + '.txt')
+            print('Converting {0}...'.format(file_name))
             new_file = codecs.open(file_name, 'w', 'utf-8')
             new_file.write(lines)
             new_file.close()
