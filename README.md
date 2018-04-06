@@ -1,10 +1,11 @@
-# Pre- and post-processing scripts for neural sequence-to-sequence AMR parsing
+# Pre- and post-processing scripts for neural sequence-to-sequence AMR parsing and AMR-to-Text Generator using side information
 
-This repository contains a list of scripts that help in pre- and post-processing for neural AMR parsing. It helps put the AMR files into structures sequence-to-sequence models can handle. 
+This repository contains a list of scripts that help in pre- and post-processing for neural AMR parsing and AMR-to-Text Generator using side information. It helps put the AMR files into structures sequence-to-sequence models can handle. 
 
 The scripts can do the following things:
 
 * Convert AMRs to single-line format and split AMRs and sentences
+* Structuring output based on sentence-type in Proxy Report
 * Remove variables and wiki-links
 * Handle co-referring nodes in different ways
 * Swap AMR branches so that the surface string best matches the word order
@@ -34,6 +35,29 @@ There are 4 different scripts to change the usual AMR format to single-line form
 ```
 python var_free_amrs.py -f sample_input/sample.txt
 ```
+
+
+Adding `--proxy` will generate folders structure as belows:
+```
+.
+├── no_side
+|   ├── [dev|training|test]
+|   |  ├── summary_amr-release-2.0-amrs-dev-proxy.txt.sent
+|   |  ├── summary_amr-release-2.0-amrs-dev-proxy.txt.tf
+├── side
+|   ├── [dev|training|test]
+|   |  ├── amr_PROXY_[ID].txt
+|   |  ├── body_amr_PROXY_[ID].txt.sent
+|   |  ├── summary_amr_PROXY_[ID].txt.sent
+```
+
+```
+python var_free_amrs.py -f <amr_proxy>.txt --proxy
+```
+
+The `no_side` folder is intended for AMR-to-Text generator without side information. All summaries are combined into single file split between text and AMR file, all AMR where sentence type is not summary are discarded. The `side` folder split the input AMR into `body` and `summary` split with respect to their document ID. The `body` will serve as the side information for the `summary` file. The `amr_PROXY_[ID].text` is the original AMR file. 
+
+No need to manually create the dev, training, and test folder. The program will detect the string in the file_path and automatically create the folder.  
 
 There are two scripts that handle co-reference, either by using the Absolute Paths method or the Indexing method.
 
