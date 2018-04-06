@@ -38,13 +38,13 @@ def create_args_parser():
     parser.add_argument('-sent_ext', required=False,
                         default='.sent', help="extension of sentences (default .sent)")
     parser.add_argument('-output_path', required=True, help="Output path")
-    parser.add_argument('-filter', required=False, help="Filtering for specific AMR type (specific for Proxy dataset.)")
+    parser.add_argument('--proxy', action='store_true', help='If Proxy is enabled, the output is store in separate folders.')
     args = parser.parse_args()
 
     return args
 
 
-def single_line_convert(lines, filter_str):
+def single_line_convert(lines, filter_str=None):
     '''Convert AMRs to a single line, ignoring lines that start with "# ::"'''
 
     all_amrs = []
@@ -52,7 +52,7 @@ def single_line_convert(lines, filter_str):
     sents = []
     skip = False
     for line in lines:
-        if '::snt-type ' in line:
+        if '::snt-type ' in line and filter_str:
             if '::snt-type ' + filter_str in line:
                 skip = False
             else:
@@ -77,13 +77,13 @@ def single_line_convert(lines, filter_str):
     return all_amrs, sents
 
 
-def delete_wiki(f, filter_str):
+def delete_wiki(f, filter_str=None):
     '''Delete wiki links from AMRs'''
 
     no_wiki = []
     skip = False
     for line in open(f, 'r'):
-        if '::snt-type ' in line:
+        if '::snt-type ' in line and filter_str:
             if '::snt-type ' + filter_str in line:
                 skip = False
             else:
@@ -135,14 +135,14 @@ def process_var_line(line, var_dict):
     return deleted_var_string, var_dict
 
 
-def delete_amr_variables(amrs, filter_str):
+def delete_amr_variables(amrs, filter_str=None):
     '''Function that deletes variables from AMRs'''
 
     var_dict = dict()
     del_amr = []
     skip = False
     for line in amrs:
-        if '::snt-type ' in line:
+        if '::snt-type ' in line and filter_str:
             if '::snt-type ' + filter_str in line:
                 skip = False
             else:
@@ -178,14 +178,15 @@ if __name__ == "__main__":
 
     print 'Converting {0}...'.format(args.f)
 
-    amr_no_wiki = delete_wiki(args.f, args.filter)
-    del_amrs = delete_amr_variables(amr_no_wiki, args.filter)
-    single_amrs, sents = single_line_convert(del_amrs, args.filter)
+    if not args.proxy:
+        amr_no_wiki = delete_wiki(args.f)
+        del_amrs = delete_amr_variables(amr_no_wiki)
+        single_amrs, sents = single_line_convert(del_amrs)
 
-    assert len(single_amrs) == len(sents)  # sanity check
-
-    out_tf = os.path.join(args.output_path, args.filter + '_' + os.path.basename(args.f) + args.output_ext)
-    out_sent = os.path.join(args.output_path, args.filter + '_' + os.path.basename(args.f) + args.sent_ext)
-
-    write_to_file(single_amrs, out_tf)
-    write_to_file(sents, out_sent)
+        assert len(single_amrs) == len(sents)  # sanity check
+        out_tf = os.path.join(args.output_path, os.path.basename(args.f) + args.output_ext)
+        out_sent = os.path.join(args.output_path, os.path.basename(args.f) + args.sent_ext)
+        write_to_file(single_amrs, out_tf)
+        write_to_file(sents, out_sent)
+    else:
+        print()
