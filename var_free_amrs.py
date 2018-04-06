@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
-
-import sys
-import re
+from __future__ import absolute_import, division, print_function
+from builtins import *
 import argparse
-import os
+import re
+
 from amr_utils import *
 
 '''Script that removes variables from AMR by duplicating the information, possibly deletes wiki-links
@@ -82,7 +82,7 @@ def delete_wiki(f, filter_str=None):
 
     no_wiki = []
     skip = False
-    for line in open(f, 'r'):
+    for line in codecs.open(f, 'r', 'utf-8'):
         if '::snt-type ' in line and filter_str:
             if '::snt-type ' + filter_str in line:
                 skip = False
@@ -189,10 +189,38 @@ def gen_output(path, f, output_ext, sent_ext, filter_str=''):
     write_to_file(single_amrs, out_tf)
     write_to_file(sents, out_sent)
 
+
+def split_file(f):
+    """
+    Split AMR file into files respecting to each document ID
+    """
+    files = dict()
+    store = ''
+    file_id = ''
+    for line in codecs.open(f, 'r', 'utf-8'):
+        # Skip first line in file
+        if line.startswith('# AMR'):
+            continue
+        # Save id
+        if line.startswith('# ::id'):
+            ids = line.split(' ')[2].split('.')
+            file_id = ids[0]
+        # Blank line and filled store
+        if not line.strip() and store:
+            store += '\n'
+            assert file_id != ''
+            files[file_id] = files.setdefault(file_id, '') + store
+            store = ''
+        # All lines that are not blank
+        elif line.strip():
+            store += line
+    return files
+
+
 if __name__ == "__main__":
     args = create_args_parser()
 
-    print 'Converting {0}...'.format(args.f)
+    print('Converting {0}...'.format(args.f))
 
     if not args.proxy:
         gen_output(args.output_path, args.f, args.output_ext, args.sent_ext, filter_str=None)
@@ -212,9 +240,22 @@ if __name__ == "__main__":
         if not os.path.exists(no_side_path):
             os.mkdir(no_side_path)
 
-        # No side folder
+        '''
+        No side folder
+        '''
         gen_output(no_side_path, args.f, args.output_ext, args.sent_ext, filter_str='summary')
 
-        # Side folder
-        gen_output(side_path, args.f, args.output_ext, args.sent_ext, filter_str='body')
-        gen_output(side_path, args.f, args.output_ext, args.sent_ext, filter_str='summary')
+        '''
+        Side folder
+        '''
+        # Write split files
+        files = split_file(args.f)
+        for file_id, lines in files.items():
+            file_name = os.path.join(side_path, 'amr_' + file_id + '.txt')
+            new_file = codecs.open(file_name, 'w', 'utf-8')
+            new_file.write(lines)
+            new_file.close()
+            gen_output(side_path, file_name, args.output_ext, args.sent_ext, filter_str='body')
+            gen_output(side_path, file_name, args.output_ext, args.sent_ext, filter_str='summary')
+
+
