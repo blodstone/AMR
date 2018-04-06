@@ -52,6 +52,8 @@ def single_line_convert(lines, filter_str=None):
     sents = []
     skip = False
     for line in lines:
+        if line.startswith('# AMR'):
+            continue
         if '::snt-type ' in line and filter_str:
             if '::snt-type ' + filter_str in line:
                 skip = False
@@ -83,6 +85,8 @@ def delete_wiki(f, filter_str=None):
     no_wiki = []
     skip = False
     for line in codecs.open(f, 'r', 'utf-8'):
+        if line.startswith('# AMR'):
+            continue
         if '::snt-type ' in line and filter_str:
             if '::snt-type ' + filter_str in line:
                 skip = False
@@ -142,6 +146,8 @@ def delete_amr_variables(amrs, filter_str=None):
     del_amr = []
     skip = False
     for line in amrs:
+        if line.startswith('# AMR'):
+            continue
         if '::snt-type ' in line and filter_str:
             if '::snt-type ' + filter_str in line:
                 skip = False
@@ -227,18 +233,24 @@ if __name__ == "__main__":
         print('Converting {0}...'.format(args.f))
         gen_output(args.output_path, args.f, args.output_ext, args.sent_ext)
     else:
+        if 'training' in args.f:
+            split_path = 'training'
+        elif 'test' in args.f:
+            split_path = 'test'
+        else:
+            split_path = 'dev'
         # Create a folder specific for Proxy Report dataset
         proxy_path = os.path.join(args.output_path, 'proxy')
         if not os.path.exists(proxy_path):
             os.mkdir(proxy_path)
 
         # Create a folder for side-information input
-        side_path = os.path.join(proxy_path, 'side')
+        side_path = os.path.join(proxy_path, 'side', split_path)
         if not os.path.exists(side_path):
             os.mkdir(side_path)
 
         # Create a folder for no-side-information input
-        no_side_path = os.path.join(proxy_path, 'no_side')
+        no_side_path = os.path.join(proxy_path, 'no_side', split_path)
         if not os.path.exists(no_side_path):
             os.mkdir(no_side_path)
 
