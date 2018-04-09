@@ -179,20 +179,34 @@ def delete_amr_variables(amrs, filter_str=None):
     return del_amr
 
 
+def tokenize_parentheses(lines):
+    new_lines = []
+    for line in lines:
+        new_line = re.sub(r'\s\(', ' ( ', line)
+        new_line = re.sub(r'^\(', '', new_line)
+
+        new_line = re.sub(r'\)\s?', ' ) ', new_line)
+        new_line = re.sub(r'\)\s$', '', new_line)
+        new_line = re.sub(r'\s+', ' ', new_line)
+        new_lines.append(new_line)
+    return new_lines
+
+
 def gen_output(path, f, output_ext, sent_ext, filter_str=''):
     '''Generate output files'''
     amr_no_wiki = delete_wiki(f, filter_str)
     del_amrs = delete_amr_variables(amr_no_wiki, filter_str)
     single_amrs, sents = single_line_convert(del_amrs, filter_str)
+    single_amrs_tok = tokenize_parentheses(single_amrs)
 
-    assert len(single_amrs) == len(sents)  # sanity check
+    assert len(single_amrs_tok) == len(sents)  # sanity check
     if filter_str:
         filter_name = filter_str + '_'
     else:
         filter_name = ''
     out_tf = os.path.join(path, filter_name + os.path.basename(f) + output_ext)
     out_sent = os.path.join(path, filter_name + os.path.basename(f) + sent_ext)
-    write_to_file(single_amrs, out_tf)
+    write_to_file(single_amrs_tok, out_tf)
     write_to_file(sents, out_sent)
 
 
