@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 from builtins import *
 import argparse
 import re
-
+import spacy
 from amr_utils import *
 
 '''Script that removes variables from AMR by duplicating the information, possibly deletes wiki-links
@@ -192,14 +192,18 @@ def tokenize_parentheses(lines):
     return new_lines
 
 
-def gen_output(path, f, output_ext, sent_ext, filter_str=''):
+def gen_output(path, f, output_ext, sent_ext, filter_str='', nlp=None):
     '''Generate output files'''
     amr_no_wiki = delete_wiki(f, filter_str)
     del_amrs = delete_amr_variables(amr_no_wiki, filter_str)
     single_amrs, sents = single_line_convert(del_amrs, filter_str)
+    tokenized_sents = []
+    for sent in sents:
+        doc = nlp.make_doc(sent)
+        tokenized_sents.append(' '.join([token.text for token in doc]))
     single_amrs_tok = tokenize_parentheses(single_amrs)
 
-    assert len(single_amrs_tok) == len(sents)  # sanity check
+    assert len(single_amrs_tok) == len(tokenized_sents)  # sanity check
     if filter_str:
         filter_name = filter_str + '_'
     else:
@@ -207,7 +211,7 @@ def gen_output(path, f, output_ext, sent_ext, filter_str=''):
     out_tf = os.path.join(path, filter_name + os.path.basename(f) + output_ext)
     out_sent = os.path.join(path, filter_name + os.path.basename(f) + sent_ext)
     write_to_file(single_amrs_tok, out_tf)
-    write_to_file(sents, out_sent)
+    write_to_file(tokenized_sents, out_sent)
 
 
 def split_file(f):
@@ -239,13 +243,14 @@ def split_file(f):
 
 if __name__ == "__main__":
     args = create_args_parser()
+    nlp = spacy.load('en')
 
     if not os.path.exists(args.output_path):
         os.mkdir(args.output_path)
 
     if not args.proxy:
         print('Converting {0}...'.format(args.f))
-        gen_output(args.output_path, args.f, args.output_ext, args.sent_ext)
+        gen_output(args.output_path, args.f, args.output_ext, args.sent_ext, '', nlp)
     else:
         if 'training' in args.f:
             split_path = 'training'
@@ -271,7 +276,7 @@ if __name__ == "__main__":
         '''
         No side folder
         '''
-        gen_output(no_side_path, args.f, args.output_ext, args.sent_ext, filter_str='summary')
+        gen_output(no_side_path, args.f, args.output_ext, args.sent_ext, filter_str='summary', nlp=nlp)
 
         '''
         Side folder
@@ -284,7 +289,7 @@ if __name__ == "__main__":
             new_file = codecs.open(file_name, 'w', 'utf-8')
             new_file.write(lines)
             new_file.close()
-            gen_output(side_path, file_name, args.output_ext, args.sent_ext, filter_str='body')
-            gen_output(side_path, file_name, args.output_ext, args.sent_ext, filter_str='summary')
+            gen_output(side_path, file_name, args.output_ext, args.sent_ext, filter_str='body', nlp=nlp)
+            gen_output(side_path, file_name, args.output_ext, args.sent_ext, filter_str='summary', nlp=nlp)
 
 
