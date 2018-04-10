@@ -157,3 +157,4 @@ venv.bak/
 
 .idea/
 amr_utils.pyc
+/scripts/
