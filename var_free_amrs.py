@@ -197,9 +197,10 @@ def custom_parentheses(args, single_amrs):
     return new_lines
 
 
-def gen_output(args, filter_str='', nlp=None):
+def gen_output(path, f, args, filter_str='', nlp=None):
     '''Generate output files'''
-    path, f, output_ext, sent_ext = args.output_path, args.f, args.output_ext, args.sent_ext
+    output_ext = args.output_ext
+    sent_ext = args.sent_ext
     amr_no_wiki = delete_wiki(f, filter_str)
     del_amrs = delete_amr_variables(amr_no_wiki, filter_str)
     single_amrs, sents = single_line_convert(del_amrs, filter_str)
@@ -256,7 +257,7 @@ if __name__ == "__main__":
 
     if not args.proxy:
         print('Converting {0}...'.format(args.f))
-        gen_output(args, '', nlp)
+        gen_output(args.output_path, args.f, args, '', nlp)
     else:
         if 'training' in args.f:
             split_path = 'training'
@@ -268,6 +269,12 @@ if __name__ == "__main__":
         proxy_path = os.path.join(args.output_path, 'proxy')
         if not os.path.exists(proxy_path):
             os.mkdir(proxy_path)
+
+        if not os.path.exists(os.path.join(proxy_path, 'side')):
+            os.mkdir(os.path.join(proxy_path, 'side'))
+
+        if not os.path.exists(os.path.join(proxy_path, 'no_side')):
+            os.mkdir(os.path.join(proxy_path, 'no_side'))
 
         # Create a folder for side-information input
         side_path = os.path.join(proxy_path, 'side', split_path)
@@ -282,7 +289,7 @@ if __name__ == "__main__":
         '''
         No side folder
         '''
-        gen_output(args, filter_str='summary', nlp=nlp)
+        gen_output(no_side_path, args.f, args, filter_str='summary', nlp=nlp)
 
         '''
         Side folder
@@ -295,7 +302,7 @@ if __name__ == "__main__":
             new_file = codecs.open(file_name, 'w', 'utf-8')
             new_file.write(lines)
             new_file.close()
-            gen_output(args, filter_str='body', nlp=nlp)
-            gen_output(args, filter_str='summary', nlp=nlp)
+            gen_output(side_path, file_name, args, filter_str='body', nlp=nlp)
+            gen_output(side_path, file_name, args, filter_str='summary', nlp=nlp)
 
 
