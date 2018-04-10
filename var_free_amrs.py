@@ -40,6 +40,7 @@ def create_args_parser():
     parser.add_argument('-output_path', required=True, help="Output path")
     parser.add_argument('--no_parentheses', action='store_true', help='Remove all parentheses.')
     parser.add_argument('--proxy', action='store_true', help='If Proxy is enabled, the output is store in separate folders.')
+    parser.add_argument('--no_semantics', action='store_true', help='Remove all semantics identifier from the AMR concept nodes.')
     args = parser.parse_args()
 
     return args
@@ -193,6 +194,8 @@ def custom_parentheses(args, single_amrs):
             new_line = re.sub(r'\)\s?', ' ) ', new_line)
             new_line = re.sub(r'\)\s$', '', new_line)
             new_line = re.sub(r'\s+', ' ', new_line)
+        if args.no_semantics:
+            new_line = re.sub(r'-[09]\d\s', ' ', new_line)
         new_lines.append(new_line)
     return new_lines
 
