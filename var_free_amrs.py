@@ -41,6 +41,7 @@ def create_args_parser():
     parser.add_argument('--no_parentheses', action='store_true', help='Remove all parentheses.')
     parser.add_argument('--proxy', action='store_true', help='If Proxy is enabled, the output is store in separate folders.')
     parser.add_argument('--no_semantics', action='store_true', help='Remove all semantics identifier from the AMR concept nodes.')
+    parser.add_argument('--filter_summary', action='store_true', help='Filter out non-summary in Proxy Report dataset of pre-training.')
     args = parser.parse_args()
 
     return args
@@ -260,7 +261,10 @@ if __name__ == "__main__":
 
     if not args.proxy:
         print('Converting {0}...'.format(args.f))
-        gen_output(args.output_path, args.f, args, '', nlp)
+        if not args.filter_summary:
+            gen_output(args.output_path, args.f, args, '', nlp)
+        else:
+            gen_output(args.output_path, args.f, args, 'summary', nlp)
     else:
         if 'training' in args.f:
             split_path = 'training'
