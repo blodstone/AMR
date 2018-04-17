@@ -182,7 +182,7 @@ def delete_amr_variables(amrs, filter_str=None):
     return del_amr
 
 
-def custom_parentheses(args, single_amrs):
+def post_process_line(args, single_amrs):
     new_lines = []
     for line in single_amrs:
         if args.no_parentheses:
@@ -201,8 +201,10 @@ def custom_parentheses(args, single_amrs):
     return new_lines
 
 
-def gen_output(path, f, args, filter_str='', nlp=None):
-    '''Generate output files'''
+def gen_output(path, f, args, is_file=True, filter_str='', nlp=None):
+    """
+    Generate output in either file or dictionary format. Will automatically write to files.
+    """
     output_ext = args.output_ext
     sent_ext = args.sent_ext
     amr_no_wiki = delete_wiki(f, filter_str)
@@ -212,17 +214,22 @@ def gen_output(path, f, args, filter_str='', nlp=None):
     for sent in sents:
         doc = nlp.make_doc(sent)
         tokenized_sents.append(' '.join([token.text for token in doc]))
-    single_amrs_tok = custom_parentheses(args, single_amrs)
+    single_amrs_tok = post_process_line(args, single_amrs)
 
     assert len(single_amrs_tok) == len(tokenized_sents)  # sanity check
     if filter_str:
         filter_name = filter_str + '_'
     else:
         filter_name = ''
-    out_tf = os.path.join(path, filter_name + os.path.basename(f) + output_ext)
-    out_sent = os.path.join(path, filter_name + os.path.basename(f) + sent_ext)
-    write_to_file(single_amrs_tok, out_tf)
-    write_to_file(tokenized_sents, out_sent)
+    if is_file:
+        out_tf = os.path.join(path, filter_name + os.path.basename(f) + output_ext)
+        out_sent = os.path.join(path, filter_name + os.path.basename(f) + sent_ext)
+        write_to_file(single_amrs_tok, out_tf)
+        write_to_file(tokenized_sents, out_sent)
+    else:
+        result = dict()
+        result[os.path.basename(f)] = (single_amrs_tok, tokenized_sents)
+        return result
 
 
 def split_file(f):
@@ -259,8 +266,8 @@ if __name__ == "__main__":
     if not os.path.exists(args.output_path):
         os.mkdir(args.output_path)
 
+    print('Converting {0}...'.format(args.f))
     if not args.proxy:
-        print('Converting {0}...'.format(args.f))
         if not args.filter_summary:
             gen_output(args.output_path, args.f, args, '', nlp)
         else:
@@ -303,13 +310,47 @@ if __name__ == "__main__":
         '''
         # Write split files
         files = split_file(args.f)
+        body_result = dict()
+        summary_result = dict()
         for file_id, lines in files.items():
             file_name = os.path.join(side_path, 'amr_' + file_id + '.txt')
-            print('Converting {0}...'.format(file_name))
             new_file = codecs.open(file_name, 'w', 'utf-8')
             new_file.write(lines)
             new_file.close()
-            gen_output(side_path, file_name, args, filter_str='body', nlp=nlp)
-            gen_output(side_path, file_name, args, filter_str='summary', nlp=nlp)
-
+            body_result.update(gen_output(side_path, file_name, args, is_file=False, filter_str='body', nlp=nlp))
+            summary_result.update(gen_output(side_path, file_name, args, is_file=False, filter_str='summary', nlp=nlp))
+            os.remove(file_name)
+        assert body_result != None and summary_result != None
+        # Join all body_result and summary_result into a single file
+        single_body_amrs = []
+        single_body_sents = []
+        single_summ_amrs = []
+        single_summ_sents = []
+        for file_id, (summ_amrs, summ_sents) in summary_result.items():
+            body_amrs, body_sents = body_result[file_id]
+            assert len(summ_amrs) == len(summ_sents)
+            for i in range(len(summ_sents)):
+                single_summ_amrs.append(summ_amrs[i])
+                single_summ_sents.append(summ_sents[i])
+                a_body_amrs = ''
+                for body_amr in body_amrs:
+                    a_body_amrs = a_body_amrs + '<<sep>>' + body_amr
+                single_body_amrs.append(a_body_amrs)
+                single_body_sents.append(' '.join(body_sents))
+        out_tf = os.path.join(
+            side_path,
+            'body_' + os.path.basename(args.f) + args.output_ext)
+        out_sent = os.path.join(
+            side_path,
+            'body_' + os.path.basename(args.f) + args.sent_ext)
+        write_to_file(single_body_amrs, out_tf)
+        write_to_file(single_body_sents, out_sent)
+        out_tf = os.path.join(
+            side_path,
+            'summary_' + os.path.basename(args.f) + args.output_ext)
+        out_sent = os.path.join(
+            side_path,
+            'summary_' + os.path.basename(args.f) + args.sent_ext)
+        write_to_file(single_summ_amrs, out_tf)
+        write_to_file(single_summ_sents, out_sent)
 
