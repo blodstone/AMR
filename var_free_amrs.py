@@ -42,6 +42,7 @@ def create_args_parser():
     parser.add_argument('--proxy', action='store_true', help='If Proxy is enabled, the output is store in separate folders.')
     parser.add_argument('--no_semantics', action='store_true', help='Remove all semantics identifier from the AMR concept nodes.')
     parser.add_argument('--filter_summary', action='store_true', help='Filter out non-summary in Proxy Report dataset of pre-training.')
+    parser.add_argument('--add_space', action='store_true', help='Add extra space after all parentheses.')
     args = parser.parse_args()
 
     return args
@@ -189,12 +190,13 @@ def post_process_line(args, single_amrs):
             new_line = re.sub(r'\(', '', line)
             new_line = re.sub(r'\)', '', new_line)
         else:
-            new_line = re.sub(r'\s\(', ' ( ', line)
-            new_line = re.sub(r'^\(', '', new_line)
+            if args.add_space:
+                new_line = re.sub(r'\s\(', ' ( ', line)
+                new_line = re.sub(r'^\(', '', new_line)
 
-            new_line = re.sub(r'\)\s?', ' ) ', new_line)
-            new_line = re.sub(r'\)\s$', '', new_line)
-            new_line = re.sub(r'\s+', ' ', new_line)
+                new_line = re.sub(r'\)\s?', ' ) ', new_line)
+                new_line = re.sub(r'\)\s$', '', new_line)
+                new_line = re.sub(r'\s+', ' ', new_line)
         if args.no_semantics:
             new_line = re.sub(r'-[09]\d\s', ' ', new_line)
         new_lines.append(new_line)
