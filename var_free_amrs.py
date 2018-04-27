@@ -39,6 +39,8 @@ def create_args_parser():
                         default='.sent', help="extension of sentences (default .sent)")
     parser.add_argument('-output_path', required=True, help="Output path")
     parser.add_argument('--no_parentheses', action='store_true', help='Remove all parentheses.')
+    parser.add_argument('--with_side', action='store_true', help='Generate a side or no side information folder structures.')
+
     parser.add_argument('--proxy', action='store_true', help='If Proxy is enabled, the output is store in separate folders.')
     parser.add_argument('--no_semantics', action='store_true', help='Remove all semantics identifier from the AMR concept nodes.')
     parser.add_argument('--filter_summary', action='store_true', help='Filter out non-summary in Proxy Report dataset of pre-training.')
@@ -216,21 +218,22 @@ def gen_output(path, f, args, is_file=True, filter_str='', nlp=None):
     for sent in sents:
         doc = nlp.make_doc(sent)
         tokenized_sents.append(' '.join([token.text for token in doc]))
-    single_amrs_tok = post_process_line(args, single_amrs)
+    single_amrs = post_process_line(args, single_amrs)
 
-    assert len(single_amrs_tok) == len(tokenized_sents)  # sanity check
+    assert len(single_amrs) == len(tokenized_sents)  # sanity check
+    print('Number of sentence processed: {}'.format(len(single_amrs)))
     if filter_str:
         filter_name = filter_str + '_'
     else:
-        filter_name = ''
+        filter_name = 'all_'
     if is_file:
         out_tf = os.path.join(path, filter_name + os.path.basename(f) + output_ext)
         out_sent = os.path.join(path, filter_name + os.path.basename(f) + sent_ext)
-        write_to_file(single_amrs_tok, out_tf)
+        write_to_file(single_amrs, out_tf)
         write_to_file(tokenized_sents, out_sent)
     else:
         result = dict()
-        result[os.path.basename(f)] = (single_amrs_tok, tokenized_sents)
+        result[os.path.basename(f)] = (single_amrs, tokenized_sents)
         return result
 
 
@@ -260,67 +263,44 @@ def split_file(f):
             store += line
     return files
 
-
 if __name__ == "__main__":
     args = create_args_parser()
     nlp = spacy.load('en')
 
-    if not os.path.exists(args.output_path):
-        os.mkdir(args.output_path)
-
     print('Converting {0}...'.format(args.f))
-    if not args.proxy:
-        if not args.filter_summary:
-            gen_output(args.output_path, args.f, args, '', nlp)
-        else:
-            gen_output(args.output_path, args.f, args, 'summary', nlp)
+
+    if 'training' in args.f:
+        split_path = 'training'
+    elif 'test' in args.f:
+        split_path = 'test'
     else:
-        if 'training' in args.f:
-            split_path = 'training'
-        elif 'test' in args.f:
-            split_path = 'test'
-        else:
-            split_path = 'dev'
-        # Create a folder specific for Proxy Report dataset
-        proxy_path = os.path.join(args.output_path, 'proxy')
-        if not os.path.exists(proxy_path):
-            os.mkdir(proxy_path)
+        split_path = 'dev'
 
-        if not os.path.exists(os.path.join(proxy_path, 'side')):
-            os.mkdir(os.path.join(proxy_path, 'side'))
+    filter_str = ''
+    if args.with_side:
+        if not os.path.exists(os.path.join(args.output_path, 'side', split_path)):
+            os.makedirs(os.path.join(args.output_path, 'side', split_path))
+        new_path = os.path.join(args.output_path, 'side', split_path)
+        filter_str = 'summary'
+    else:
+        if not os.path.exists(os.path.join(args.output_path, 'no_side', split_path)):
+            os.makedirs(os.path.join(args.output_path, 'no_side', split_path))
+        new_path = os.path.join(args.output_path, 'no_side', split_path)
 
-        if not os.path.exists(os.path.join(proxy_path, 'no_side')):
-            os.mkdir(os.path.join(proxy_path, 'no_side'))
-
-        # Create a folder for side-information input
-        side_path = os.path.join(proxy_path, 'side', split_path)
-        if not os.path.exists(side_path):
-            os.mkdir(side_path)
-
-        # Create a folder for no-side-information input
-        no_side_path = os.path.join(proxy_path, 'no_side', split_path)
-        if not os.path.exists(no_side_path):
-            os.mkdir(no_side_path)
-
-        '''
-        No side folder
-        '''
-        gen_output(no_side_path, args.f, args, filter_str='summary', nlp=nlp)
-
-        '''
-        Side folder
-        '''
+    if 'training' in new_path:
+        gen_output(new_path, args.f, args, filter_str=filter_str, nlp=nlp)
+    else:
         # Write split files
         files = split_file(args.f)
         body_result = dict()
         summary_result = dict()
         for file_id, lines in files.items():
-            file_name = os.path.join(side_path, 'amr_' + file_id + '.txt')
+            file_name = os.path.join(new_path, 'amr_' + file_id + '.txt')
             new_file = codecs.open(file_name, 'w', 'utf-8')
             new_file.write(lines)
             new_file.close()
-            body_result.update(gen_output(side_path, file_name, args, is_file=False, filter_str='body', nlp=nlp))
-            summary_result.update(gen_output(side_path, file_name, args, is_file=False, filter_str='summary', nlp=nlp))
+            body_result.update(gen_output(new_path, file_name, args, is_file=False, filter_str='body', nlp=nlp))
+            summary_result.update(gen_output(new_path, file_name, args, is_file=False, filter_str='summary', nlp=nlp))
             os.remove(file_name)
         assert body_result != None and summary_result != None
         # Join all body_result and summary_result into a single file
@@ -339,19 +319,20 @@ if __name__ == "__main__":
                     a_body_amrs = a_body_amrs + '<<sep>>' + body_amr
                 single_body_amrs.append(a_body_amrs)
                 single_body_sents.append(' '.join(body_sents))
+        if args.with_side:
+            out_tf = os.path.join(
+                new_path,
+                'body_' + os.path.basename(args.f) + args.output_ext)
+            out_sent = os.path.join(
+                new_path,
+                'body_' + os.path.basename(args.f) + args.sent_ext)
+            write_to_file(single_body_amrs, out_tf)
+            write_to_file(single_body_sents, out_sent)
         out_tf = os.path.join(
-            side_path,
-            'body_' + os.path.basename(args.f) + args.output_ext)
-        out_sent = os.path.join(
-            side_path,
-            'body_' + os.path.basename(args.f) + args.sent_ext)
-        write_to_file(single_body_amrs, out_tf)
-        write_to_file(single_body_sents, out_sent)
-        out_tf = os.path.join(
-            side_path,
+            new_path,
             'summary_' + os.path.basename(args.f) + args.output_ext)
         out_sent = os.path.join(
-            side_path,
+            new_path,
             'summary_' + os.path.basename(args.f) + args.sent_ext)
         write_to_file(single_summ_amrs, out_tf)
         write_to_file(single_summ_sents, out_sent)
