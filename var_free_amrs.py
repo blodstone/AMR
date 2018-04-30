@@ -44,7 +44,7 @@ def create_args_parser():
     parser.add_argument('--proxy', action='store_true', help='If Proxy is enabled, the output is store in separate folders.')
     parser.add_argument('--no_semantics', action='store_true', help='Remove all semantics identifier from the AMR concept nodes.')
     parser.add_argument('--filter_summary', action='store_true', help='Filter out non-summary in Proxy Report dataset of pre-training.')
-    parser.add_argument('--add_space', action='store_true', help='Add extra space after all parentheses.')
+    parser.add_argument('--custom_parentheses', action='store_true', help='Add extra space after all parentheses and remove beginning and ending parentheses.')
     args = parser.parse_args()
 
     return args
@@ -192,7 +192,7 @@ def post_process_line(args, single_amrs):
             new_line = re.sub(r'\(', '', line)
             new_line = re.sub(r'\)', '', new_line)
         else:
-            if args.add_space:
+            if args.custom_parentheses:
                 new_line = re.sub(r'\s\(', ' ( ', line)
                 new_line = re.sub(r'^\(', '', new_line)
 
@@ -278,14 +278,14 @@ if __name__ == "__main__":
 
     filter_str = ''
     if args.with_side:
-        if not os.path.exists(os.path.join(args.output_path, 'side', split_path)):
-            os.makedirs(os.path.join(args.output_path, 'side', split_path))
-        new_path = os.path.join(args.output_path, 'side', split_path)
+        if not os.path.exists(os.path.join(args.output_path, 'filter', split_path)):
+            os.makedirs(os.path.join(args.output_path, 'filter', split_path))
+        new_path = os.path.join(args.output_path, 'filter', split_path)
         filter_str = 'summary'
     else:
-        if not os.path.exists(os.path.join(args.output_path, 'no_side', split_path)):
-            os.makedirs(os.path.join(args.output_path, 'no_side', split_path))
-        new_path = os.path.join(args.output_path, 'no_side', split_path)
+        if not os.path.exists(os.path.join(args.output_path, 'no_filter', split_path)):
+            os.makedirs(os.path.join(args.output_path, 'no_filter', split_path))
+        new_path = os.path.join(args.output_path, 'no_filter', split_path)
 
     if 'training' in new_path:
         gen_output(new_path, args.f, args, filter_str=filter_str, nlp=nlp)

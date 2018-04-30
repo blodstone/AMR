@@ -40,15 +40,16 @@ python var_free_amrs.py -f sample_input/sample.txt
 Adding `--proxy` will generate folders structure as belows:
 ```
 .
-├── no_side
-|   ├── [dev|training|test]
-|   |  ├── summary_amr-release-2.0-amrs-dev-proxy.txt.sent
-|   |  ├── summary_amr-release-2.0-amrs-dev-proxy.txt.tf
 ├── side
 |   ├── [dev|training|test]
-|   |  ├── amr_PROXY_[ID].txt
-|   |  ├── body_amr_PROXY_[ID].txt.sent
-|   |  ├── summary_amr_PROXY_[ID].txt.sent
+|   |  ├── [dev|training|test]_side.txt.sent
+|   |  ├── [dev|training|test]_side.txt.tf
+|   |  ├── original_test_side.txt.tf
+|   |  ├── original_test_side.txt.sent
+├── no_side
+|   ├── [dev|training|test]
+|   |  ├── [dev|training|test]_no_side.txt.sent
+|   |  ├── [dev|training|test]_no_side.txt.tf
 ```
 
 ```
