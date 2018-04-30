@@ -188,8 +188,9 @@ def delete_amr_variables(amrs, filter_str=None):
 def post_process_line(args, single_amrs):
     new_lines = []
     for line in single_amrs:
+        new_line = line
         if args.no_parentheses:
-            new_line = re.sub(r'\(', '', line)
+            new_line = re.sub(r'\(', '', new_line)
             new_line = re.sub(r'\)', '', new_line)
         else:
             if args.custom_parentheses:
