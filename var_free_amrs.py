@@ -40,7 +40,7 @@ def create_args_parser():
     parser.add_argument('-output_path', required=True, help="Output path")
     parser.add_argument('--no_parentheses', action='store_true', help='Remove all parentheses.')
     parser.add_argument('--with_side', action='store_true', help='Generate a side or no side information folder structures.')
-
+    parser.add_argument('--delete_amr_var', action='store_true', help='Delete the AMR variable.')
     parser.add_argument('--proxy', action='store_true', help='If Proxy is enabled, the output is store in separate folders.')
     parser.add_argument('--no_semantics', action='store_true', help='Remove all semantics identifier from the AMR concept nodes.')
     parser.add_argument('--filter_summary', action='store_true', help='Filter out non-summary in Proxy Report dataset of pre-training.')
@@ -213,8 +213,9 @@ def gen_output(path, f, args, is_file=True, filter_str='', nlp=None):
     output_ext = args.output_ext
     sent_ext = args.sent_ext
     amr_no_wiki = delete_wiki(f, filter_str)
-    del_amrs = delete_amr_variables(amr_no_wiki, filter_str)
-    single_amrs, sents = single_line_convert(del_amrs, filter_str)
+    if args.delete_amr_var:
+        amr_no_wiki = delete_amr_variables(amr_no_wiki, filter_str)
+    single_amrs, sents = single_line_convert(amr_no_wiki, filter_str)
     tokenized_sents = []
     for sent in sents:
         doc = nlp.make_doc(sent)
