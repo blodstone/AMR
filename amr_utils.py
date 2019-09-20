@@ -14,10 +14,13 @@ def get_default_amr():
     return default
 
 
-def write_to_file(lst, file_new):
+def write_to_file(lst, file_new, split=True):
     with codecs.open(file_new, 'w', 'utf-8') as out_f:
-        for line in lst:
-            out_f.write(line.strip() + '\n')
+        if split:
+            for line in lst:
+                out_f.write(line.strip() + '\n')
+        else:
+            out_f.write(lst)
     out_f.close()
 
 

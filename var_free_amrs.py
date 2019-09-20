@@ -31,6 +31,8 @@ def create_args_parser():
     '''Creating arg parser'''
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("-is_dir", action='store_true', help='Indicate that -f is directory.')
+    parser.add_argument("-side_file", help='A side file')
     parser.add_argument("-f", required=True,
                         type=str, help="AMR file")
     parser.add_argument('-output_ext', required=False,
@@ -79,7 +81,6 @@ def single_line_convert(lines, filter_str=None):
             skip = False
     if cur_amr:  # file did not end with newline, so add AMR here
         all_amrs.append(" ".join(cur_amr).strip())
-
     assert (len(all_amrs) == len(sents))  # sanity check
 
     return all_amrs, sents
@@ -206,7 +207,7 @@ def post_process_line(args, single_amrs):
     return new_lines
 
 
-def gen_output(path, f, args, is_file=True, filter_str='', nlp=None):
+def gen_output(path, f, args, is_file=True, filter_str='', nlp=None, has_sent=True):
     """
     Generate output in either file or dictionary format. Will automatically write to files.
     """
@@ -232,7 +233,8 @@ def gen_output(path, f, args, is_file=True, filter_str='', nlp=None):
         out_tf = os.path.join(path, filter_name + os.path.basename(f) + output_ext)
         out_sent = os.path.join(path, filter_name + os.path.basename(f) + sent_ext)
         write_to_file(single_amrs, out_tf)
-        write_to_file(tokenized_sents, out_sent)
+        if has_sent:
+            write_to_file(tokenized_sents, out_sent)
     else:
         result = dict()
         result[os.path.basename(f)] = (single_amrs, tokenized_sents)
@@ -265,79 +267,120 @@ def split_file(f):
             store += line
     return files
 
+
 if __name__ == "__main__":
     args = create_args_parser()
     nlp = spacy.load('en')
 
     print('Converting {0}...'.format(args.f))
 
-    if 'training' in args.f:
-        split_path = 'training'
-    elif 'test' in args.f:
-        split_path = 'test'
-    else:
-        split_path = 'dev'
-
-    filter_str = ''
-    if args.with_side:
-        if not os.path.exists(os.path.join(args.output_path, 'filter', split_path)):
-            os.makedirs(os.path.join(args.output_path, 'filter', split_path))
-        new_path = os.path.join(args.output_path, 'filter', split_path)
-        filter_str = 'summary'
-    else:
-        if not os.path.exists(os.path.join(args.output_path, 'no_filter', split_path)):
-            os.makedirs(os.path.join(args.output_path, 'no_filter', split_path))
-        new_path = os.path.join(args.output_path, 'no_filter', split_path)
-
-    if 'training' in new_path:
-        gen_output(new_path, args.f, args, filter_str=filter_str, nlp=nlp)
-    else:
+    if args.is_dir:
+        for filename in os.listdir(args.f):
+            if filename.endswith('system'):
+                file_path = os.path.join(args.f, filename)
+                gen_output(args.output_path, file_path, args, filter_str='', nlp=nlp, has_sent=False)
+            pass
         if args.with_side:
             # Write split files
-            files = split_file(args.f)
+            files = split_file(args.side_file)
             body_result = dict()
             summary_result = dict()
             for file_id, lines in files.items():
-                file_name = os.path.join(new_path, 'amr_' + file_id + '.txt')
+                file_name = os.path.join(args.output_path, file_id + '.txt')
                 new_file = codecs.open(file_name, 'w', 'utf-8')
                 new_file.write(lines)
                 new_file.close()
-                body_result.update(gen_output(new_path, file_name, args, is_file=False, filter_str='body', nlp=nlp))
-                summary_result.update(gen_output(new_path, file_name, args, is_file=False, filter_str='summary', nlp=nlp))
+                body_result.update(gen_output(args.output_path, file_name, args, is_file=False, filter_str='body', nlp=nlp))
+                summary_result.update(
+                    gen_output(args.output_path, file_name, args, is_file=False, filter_str='summary', nlp=nlp))
                 os.remove(file_name)
             assert body_result != None and summary_result != None
             # Join all body_result and summary_result into a single file
-            single_body_amrs = []
-            single_body_sents = []
-            single_summ_amrs = []
-            single_summ_sents = []
             for file_id, (summ_amrs, summ_sents) in summary_result.items():
                 body_amrs, body_sents = body_result[file_id]
                 assert len(summ_amrs) == len(summ_sents)
                 for i in range(len(summ_sents)):
-                    single_summ_amrs.append(summ_amrs[i])
-                    single_summ_sents.append(summ_sents[i])
                     a_body_amrs = ''
                     for body_amr in body_amrs:
                         a_body_amrs = a_body_amrs + '<<sep>>' + body_amr
-                    single_body_amrs.append(a_body_amrs)
-                    single_body_sents.append(' '.join(body_sents))
-            out_tf = os.path.join(
-                new_path,
-                'body_' + os.path.basename(args.f) + args.output_ext)
-            out_sent = os.path.join(
-                new_path,
-                'body_' + os.path.basename(args.f) + args.sent_ext)
-            write_to_file(single_body_amrs, out_tf)
-            write_to_file(single_body_sents, out_sent)
-            out_tf = os.path.join(
-                new_path,
-                'summary_' + os.path.basename(args.f) + args.output_ext)
-            out_sent = os.path.join(
-                new_path,
-                'summary_' + os.path.basename(args.f) + args.sent_ext)
-            write_to_file(single_summ_amrs, out_tf)
-            write_to_file(single_summ_sents, out_sent)
+                    single_body_amrs = a_body_amrs
+                    single_body_sents = ' '.join(body_sents)
+                    out_tf = os.path.join(
+                        args.output_path,
+                        'body_all_' + file_id[:-4] + '_system' + args.output_ext + '.s')
+                    out_sent = os.path.join(
+                        args.output_path,
+                        'body_all_' + file_id[:-4] + '_system.tf' + args.sent_ext + '.s')
+                    write_to_file(single_body_amrs, out_tf, False)
+                    write_to_file(single_body_sents, out_sent, False)
+    else:
+        if 'training' in args.f:
+            split_path = 'training'
+        elif 'test' in args.f:
+            split_path = 'test'
         else:
+            split_path = 'dev'
+
+        filter_str = ''
+        if args.with_side:
+            if not os.path.exists(os.path.join(args.output_path, 'filter', split_path)):
+                os.makedirs(os.path.join(args.output_path, 'filter', split_path))
+            new_path = os.path.join(args.output_path, 'filter', split_path)
+            filter_str = 'summary'
+        else:
+            if not os.path.exists(os.path.join(args.output_path, 'no_filter', split_path)):
+                os.makedirs(os.path.join(args.output_path, 'no_filter', split_path))
+            new_path = os.path.join(args.output_path, 'no_filter', split_path)
+
+        if 'training' in new_path:
             gen_output(new_path, args.f, args, filter_str=filter_str, nlp=nlp)
+        else:
+            if args.with_side:
+                # Write split files
+                files = split_file(args.f)
+                body_result = dict()
+                summary_result = dict()
+                for file_id, lines in files.items():
+                    file_name = os.path.join(new_path, 'amr_' + file_id + '.txt')
+                    new_file = codecs.open(file_name, 'w', 'utf-8')
+                    new_file.write(lines)
+                    new_file.close()
+                    body_result.update(gen_output(new_path, file_name, args, is_file=False, filter_str='body', nlp=nlp))
+                    summary_result.update(gen_output(new_path, file_name, args, is_file=False, filter_str='summary', nlp=nlp))
+                    os.remove(file_name)
+                assert body_result != None and summary_result != None
+                # Join all body_result and summary_result into a single file
+                single_body_amrs = []
+                single_body_sents = []
+                single_summ_amrs = []
+                single_summ_sents = []
+                for file_id, (summ_amrs, summ_sents) in summary_result.items():
+                    body_amrs, body_sents = body_result[file_id]
+                    assert len(summ_amrs) == len(summ_sents)
+                    for i in range(len(summ_sents)):
+                        single_summ_amrs.append(summ_amrs[i])
+                        single_summ_sents.append(summ_sents[i])
+                        a_body_amrs = ''
+                        for body_amr in body_amrs:
+                            a_body_amrs = a_body_amrs + '<<sep>>' + body_amr
+                        single_body_amrs.append(a_body_amrs)
+                        single_body_sents.append(' '.join(body_sents))
+                out_tf = os.path.join(
+                    new_path,
+                    'body_' + os.path.basename(args.f) + args.output_ext)
+                out_sent = os.path.join(
+                    new_path,
+                    'body_' + os.path.basename(args.f) + args.sent_ext)
+                write_to_file(single_body_amrs, out_tf)
+                write_to_file(single_body_sents, out_sent)
+                out_tf = os.path.join(
+                    new_path,
+                    'summary_' + os.path.basename(args.f) + args.output_ext)
+                out_sent = os.path.join(
+                    new_path,
+                    'summary_' + os.path.basename(args.f) + args.sent_ext)
+                write_to_file(single_summ_amrs, out_tf)
+                write_to_file(single_summ_sents, out_sent)
+            else:
+                gen_output(new_path, args.f, args, filter_str=filter_str, nlp=nlp)
 
