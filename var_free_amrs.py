@@ -270,7 +270,7 @@ def split_file(f):
 
 if __name__ == "__main__":
     args = create_args_parser()
-    nlp = spacy.load('en')
+    nlp = spacy.load('en_core_web_sm')
 
     print('Converting {0}...'.format(args.f))
 
